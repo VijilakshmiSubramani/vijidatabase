@@ -1,0 +1,185 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+patients = []
+
+def insert_patient():
+    name = entry_name.get()
+    age = entry_age.get()
+    gender = gender_var.get()
+    disease = entry_disease.get()
+    contact = entry_contact.get()
+
+    if name and age and disease and contact:
+        patients.append([len(patients) + 1, name, age, gender, disease, contact])
+        messagebox.showinfo("Success", "Patient added successfully!")
+        clear_fields()
+    else:
+        messagebox.showerror("Error", "All fields are required.")
+
+def update_patient(tree_view):
+    selected = tree_view.selection()
+    if not selected:
+        messagebox.showerror("Error", "Select a record to update.")
+        return
+
+    
+    item = tree_view.item(selected)
+    patient_id = int(item["values"][0])
+
+    
+    name = entry_name.get()
+    age = entry_age.get()
+    gender = gender_var.get()
+    disease = entry_disease.get()
+    contact = entry_contact.get()
+
+    if name and age and disease and contact:
+        # Update patient details
+        for patient in patients:
+            if patient[0] == patient_id:
+                patient[1] = name
+                patient[2] = age
+                patient[3] = gender
+                patient[4] = disease
+                patient[5] = contact
+                break
+
+       
+        fetch_patients(tree_view)
+        messagebox.showinfo("Success", "Patient details updated successfully!")
+        clear_fields()
+    else:
+        messagebox.showerror("Error", "All fields are required.")
+
+
+def delete_patient(tree_view):
+    selected = tree_view.selection()
+    if not selected:
+        messagebox.showerror("Error", "Select a record to delete.")
+        return
+
+    
+    item = tree_view.item(selected)
+    patient_id = int(item["values"][0])
+
+    
+    global patients
+    patients = [p for p in patients if p[0] != patient_id]
+
+    
+    fetch_patients(tree_view)
+    messagebox.showinfo("Success", "Patient deleted successfully!")
+
+
+def fetch_patients(tree_view):
+    for row in tree_view.get_children():
+        tree_view.delete(row)
+    for patient in patients:
+        tree_view.insert("", tk.END, values=patient)
+
+def select_record(tree_view):
+    selected = tree_view.selection()
+    if not selected:
+        return
+
+    
+    item = tree_view.item(selected)
+    values = item["values"]
+
+    
+    entry_name.delete(0, tk.END)
+    entry_name.insert(0, values[1])
+
+    entry_age.delete(0, tk.END)
+    entry_age.insert(0, values[2])
+
+    gender_var.set(values[3])
+
+    entry_disease.delete(0, tk.END)
+    entry_disease.insert(0, values[4])
+
+    entry_contact.delete(0, tk.END)
+    entry_contact.insert(0, values[5])
+
+
+def open_table_page():
+    table_page = tk.Toplevel(root)
+    table_page.title("Patient Records")
+    table_page.geometry("600x400")
+
+    columns = ("ID", "Name", "Age", "Gender", "Disease", "Contact")
+    tree_view = ttk.Treeview(table_page, columns=columns, show="headings", height=10)
+
+    for col in columns:
+        tree_view.heading(col, text=col)
+        tree_view.column(col, width=100, anchor="center")
+
+    tree_view.pack(pady=10, fill=tk.BOTH, expand=True)
+
+    
+    fetch_patients(tree_view)
+
+    
+    tree_view.bind("<<TreeviewSelect>>", lambda event: select_record(tree_view))
+
+   
+    button_frame = tk.Frame(table_page)
+    button_frame.pack(pady=10)
+
+    tk.Button(button_frame, text="Update Selected", font=("Arial", 12), bg="#3498DB", fg="white",
+              command=lambda: update_patient(tree_view)).grid(row=0, column=0, padx=5)
+
+    tk.Button(button_frame, text="Delete Selected", font=("Arial", 12), bg="#E74C3C", fg="white",
+              command=lambda: delete_patient(tree_view)).grid(row=0, column=1, padx=5)
+
+
+def clear_fields():
+    entry_name.delete(0, tk.END)
+    entry_age.delete(0, tk.END)
+    entry_disease.delete(0, tk.END)
+    entry_contact.delete(0, tk.END)
+    gender_var.set("Male")
+
+
+root = tk.Tk()
+root.title("Patient Management System")
+root.geometry("500x350")
+root.configure(bg="white")
+
+frame = tk.Frame(root, bg="white")
+frame.pack(pady=10)
+
+
+tk.Label(frame, text="Patient Name:", font=("Arial", 12), bg="white").grid(row=0, column=0, padx=10, pady=5, sticky="e")
+entry_name = tk.Entry(frame, font=("Arial", 12), width=25)
+entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+tk.Label(frame, text="Age:", font=("Arial", 12), bg="white").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+entry_age = tk.Entry(frame, font=("Arial", 12), width=25)
+entry_age.grid(row=1, column=1, padx=10, pady=5)
+
+tk.Label(frame, text="Gender:", font=("Arial", 12), bg="white").grid(row=2, column=0, padx=10, pady=5, sticky="e")
+gender_var = tk.StringVar(value="Male")
+gender_frame = tk.Frame(frame, bg="white")
+gender_frame.grid(row=2, column=1, sticky="w")
+tk.Radiobutton(gender_frame, text="Male", variable=gender_var, value="Male", bg="white").pack(side=tk.LEFT, padx=5)
+tk.Radiobutton(gender_frame, text="Female", variable=gender_var, value="Female", bg="white").pack(side=tk.LEFT, padx=5)
+tk.Radiobutton(gender_frame, text="Other", variable=gender_var, value="Other", bg="white").pack(side=tk.LEFT, padx=5)
+
+tk.Label(frame, text="Disease:", font=("Arial", 12), bg="white").grid(row=3, column=0, padx=10, pady=5, sticky="e")
+entry_disease = tk.Entry(frame, font=("Arial", 12), width=25)
+entry_disease.grid(row=3, column=1, padx=10, pady=5)
+
+tk.Label(frame, text="Contact:", font=("Arial", 12), bg="white").grid(row=4, column=0, padx=10, pady=5, sticky="e")
+entry_contact = tk.Entry(frame, font=("Arial", 12), width=25)
+entry_contact.grid(row=4, column=1, padx=10, pady=5)
+
+
+button_frame = tk.Frame(root, bg="white")
+button_frame.pack(pady=10)
+
+tk.Button(button_frame, text="Add", font=("Arial", 12), bg="#2ECC71", fg="white", width=10, command=insert_patient).grid(row=0, column=0, padx=5)
+tk.Button(button_frame, text="Show", font=("Arial", 12), bg="#9B59B6", fg="white", width=10, command=open_table_page).grid(row=0, column=1, padx=5)
+
+root.mainloop()
