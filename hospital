@@ -1,57 +1,57 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sqlite3
+def setup_db():
+    conn = sqlite3.connect("hospital.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS patients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            gender TEXT NOT NULL,
+            disease TEXT NOT NULL,
+            contact TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-patients = []
+setup_db()
 
 def insert_patient():
-    name = entry_name.get()
-    age = entry_age.get()
+    name = entry_name.get().strip()
+    age = entry_age.get().strip()
     gender = gender_var.get()
-    disease = entry_disease.get()
-    contact = entry_contact.get()
+    disease = entry_disease.get().strip()
+    contact = entry_contact.get().strip()
 
-    if name and age and disease and contact:
-        patients.append([len(patients) + 1, name, age, gender, disease, contact])
-        messagebox.showinfo("Success", "Patient added successfully!")
-        clear_fields()
-    else:
-        messagebox.showerror("Error", "All fields are required.")
-
-def update_patient(tree_view):
-    selected = tree_view.selection()
-    if not selected:
-        messagebox.showerror("Error", "Select a record to update.")
+    if not (name and age and gender and disease and contact):
+        messagebox.showerror("Error", "All fields are required")
         return
 
-    
-    item = tree_view.item(selected)
-    patient_id = int(item["values"][0])
-
-    
-    name = entry_name.get()
-    age = entry_age.get()
-    gender = gender_var.get()
-    disease = entry_disease.get()
-    contact = entry_contact.get()
-
-    if name and age and disease and contact:
-        # Update patient details
-        for patient in patients:
-            if patient[0] == patient_id:
-                patient[1] = name
-                patient[2] = age
-                patient[3] = gender
-                patient[4] = disease
-                patient[5] = contact
-                break
-
-       
-        fetch_patients(tree_view)
-        messagebox.showinfo("Success", "Patient details updated successfully!")
+    try:
+        age = int(age)
+        conn = sqlite3.connect("hospital.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO patients (name, age, gender, disease, contact) VALUES (?, ?, ?, ?, ?)",
+                       (name, age, gender, disease, contact))
+        conn.commit()
+        conn.close()
+        messagebox.showinfo("Success", "Patient added successfully!")
         clear_fields()
-    else:
-        messagebox.showerror("Error", "All fields are required.")
+    except ValueError:
+        messagebox.showerror("Error", "Age must be a valid number")
 
+def fetch_patients(tree_view):
+    tree_view.delete(*tree_view.get_children())  # Clear existing data
+    conn = sqlite3.connect("hospital.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM patients")
+    rows = cursor.fetchall()
+    for row in rows:
+        tree_view.insert("", tk.END, values=row)
+    conn.close()
 
 def delete_patient(tree_view):
     selected = tree_view.selection()
@@ -59,49 +59,64 @@ def delete_patient(tree_view):
         messagebox.showerror("Error", "Select a record to delete.")
         return
 
-    
-    item = tree_view.item(selected)
-    patient_id = int(item["values"][0])
+    patient_id = tree_view.item(selected, "values")[0]
 
-    
-    global patients
-    patients = [p for p in patients if p[0] != patient_id]
+    conn = sqlite3.connect("hospital.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
+    conn.commit()
+    conn.close()
 
-    
     fetch_patients(tree_view)
     messagebox.showinfo("Success", "Patient deleted successfully!")
 
+def update_patient(tree_view):
+    selected = tree_view.selection()
+    if not selected:
+        messagebox.showerror("Error", "Select a record to update.")
+        return
 
-def fetch_patients(tree_view):
-    for row in tree_view.get_children():
-        tree_view.delete(row)
-    for patient in patients:
-        tree_view.insert("", tk.END, values=patient)
+    patient_id = tree_view.item(selected, "values")[0]
+    name = entry_name.get().strip()
+    age = entry_age.get().strip()
+    gender = gender_var.get()
+    disease = entry_disease.get().strip()
+    contact = entry_contact.get().strip()
+
+    if not (name and age and gender and disease and contact):
+        messagebox.showerror("Error", "All fields are required")
+        return
+
+    try:
+        age = int(age)
+        conn = sqlite3.connect("hospital.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE patients SET name=?, age=?, gender=?, disease=?, contact=? WHERE id=?",
+                       (name, age, gender, disease, contact, patient_id))
+        conn.commit()
+        conn.close()
+        fetch_patients(tree_view)
+        messagebox.showinfo("Success", "Patient updated successfully!")
+        clear_fields()
+    except ValueError:
+        messagebox.showerror("Error", "Age must be a valid number")
+
 
 def select_record(tree_view):
     selected = tree_view.selection()
     if not selected:
         return
 
-    
-    item = tree_view.item(selected)
-    values = item["values"]
-
-    
+    item = tree_view.item(selected, "values")
     entry_name.delete(0, tk.END)
-    entry_name.insert(0, values[1])
-
+    entry_name.insert(0, item[1])
     entry_age.delete(0, tk.END)
-    entry_age.insert(0, values[2])
-
-    gender_var.set(values[3])
-
+    entry_age.insert(0, item[2])
+    gender_var.set(item[3])
     entry_disease.delete(0, tk.END)
-    entry_disease.insert(0, values[4])
-
+    entry_disease.insert(0, item[4])
     entry_contact.delete(0, tk.END)
-    entry_contact.insert(0, values[5])
-
+    entry_contact.insert(0, item[5])
 
 def open_table_page():
     table_page = tk.Toplevel(root)
@@ -117,29 +132,24 @@ def open_table_page():
 
     tree_view.pack(pady=10, fill=tk.BOTH, expand=True)
 
-    
     fetch_patients(tree_view)
 
-    
     tree_view.bind("<<TreeviewSelect>>", lambda event: select_record(tree_view))
 
-   
     button_frame = tk.Frame(table_page)
     button_frame.pack(pady=10)
 
     tk.Button(button_frame, text="Update Selected", font=("Arial", 12), bg="#3498DB", fg="white",
               command=lambda: update_patient(tree_view)).grid(row=0, column=0, padx=5)
-
     tk.Button(button_frame, text="Delete Selected", font=("Arial", 12), bg="#E74C3C", fg="white",
               command=lambda: delete_patient(tree_view)).grid(row=0, column=1, padx=5)
-
 
 def clear_fields():
     entry_name.delete(0, tk.END)
     entry_age.delete(0, tk.END)
+    gender_var.set("Male")
     entry_disease.delete(0, tk.END)
     entry_contact.delete(0, tk.END)
-    gender_var.set("Male")
 
 
 root = tk.Tk()
@@ -149,7 +159,6 @@ root.configure(bg="white")
 
 frame = tk.Frame(root, bg="white")
 frame.pack(pady=10)
-
 
 tk.Label(frame, text="Patient Name:", font=("Arial", 12), bg="white").grid(row=0, column=0, padx=10, pady=5, sticky="e")
 entry_name = tk.Entry(frame, font=("Arial", 12), width=25)
@@ -175,10 +184,8 @@ tk.Label(frame, text="Contact:", font=("Arial", 12), bg="white").grid(row=4, col
 entry_contact = tk.Entry(frame, font=("Arial", 12), width=25)
 entry_contact.grid(row=4, column=1, padx=10, pady=5)
 
-
 button_frame = tk.Frame(root, bg="white")
 button_frame.pack(pady=10)
-
 tk.Button(button_frame, text="Add", font=("Arial", 12), bg="#2ECC71", fg="white", width=10, command=insert_patient).grid(row=0, column=0, padx=5)
 tk.Button(button_frame, text="Show", font=("Arial", 12), bg="#9B59B6", fg="white", width=10, command=open_table_page).grid(row=0, column=1, padx=5)
 
